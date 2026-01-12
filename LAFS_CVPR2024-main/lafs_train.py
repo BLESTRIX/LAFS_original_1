@@ -162,36 +162,28 @@ def train_lafs(args):
     cudnn.benchmark = True
 
     # ============ preparing data ... ============
-    transform = DataAugmentation_LAFS(
-        args.global_crops_scale,
-        args.local_crops_scale,
-        args.local_crops_number,
-    )
-    # dataset = datasets.ImageFolder(args.data_path, transform=transform)
-    from face_pre_pro.dataloader_web import FaceDataset
-    
-    #config path
-    # landmark_path='/data/home/acw569/precheck/ms1m_196_land_sp/Backbone_VIT_land_8_Epoch_34_Batch_523881_Time_2021-07-31-11-07_checkpoint.pth'
-    
-    dataset = FaceDataset(os.path.join(data_path, 'train.rec'), dino_trans=transform,rand_mirror=False,random_resizecrop=False,rand_au=False,sifenzhiyi=True
-            ,filepath_id_nidex='ms1m_random_index.json')
+    from datasets.csv_dataset import CSVDataset
+    from torchvision import transforms
 
-    
-    # args.output_dir='/data/scratch/acw569/checkpoint/ssl/ms1m_land_ms1mland_1m_40epoch_noflip'
+    transform = transforms.Compose([
+    transforms.ToTensor(),
+    transforms.Normalize(mean=[0.5]*3, std=[0.5]*3)
+                        ])
 
-    #end config path
+    dataset = CSVDataset(
+    csv_path="/content/drive/MyDrive/LAFS_datasets/extracted_0_0/labels.csv",
+    root_dir="/content/drive/MyDrive/LAFS_datasets/extracted_0_0",
+    transform=transform
+                          )
+    from torch.utils.data import DataLoader
 
-    Path(args.output_dir).mkdir(parents=True, exist_ok=True)
-    sampler = torch.utils.data.DistributedSampler(dataset, shuffle=True)
-    data_loader = torch.utils.data.DataLoader(
-        dataset,
-        sampler=sampler,
-        batch_size=args.batch_size_per_gpu,
-        num_workers=args.num_workers,
-        pin_memory=True,
-        drop_last=True,
-    )
-    print(f"Data loaded: there are {len(dataset)} images.")
+    loader = DataLoader(
+    dataset,
+    batch_size=256,
+    shuffle=True,
+    num_workers=2,
+    pin_memory=True
+              )
 
     # ============ building student and teacher networks ... ============
     # we changed the name DeiT-S for ViT-S to avoid confusions
